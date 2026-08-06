@@ -1,33 +1,14 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { getMenuItems, addMenuItem } from '@/lib/mockData';
 
-// GET /api/menu - List items with optional search & category filter
+// GET /api/menu - List items from memory
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const category = searchParams.get('category');
     const search = searchParams.get('search');
 
-    const where: any = {};
-
-    if (category && category !== 'All') {
-      where.category = category;
-    }
-
-    if (search && search.trim() !== '') {
-      where.OR = [
-        { name: { contains: search } },
-        { description: { contains: search } },
-      ];
-    }
-
-    const items = await prisma.menuItem.findMany({
-      where,
-      orderBy: [
-        { isPopular: 'desc' },
-        { createdAt: 'desc' },
-      ],
-    });
+    const items = getMenuItems(category, search);
 
     return NextResponse.json({ success: true, data: items });
   } catch (error: any) {
@@ -39,7 +20,7 @@ export async function GET(request: Request) {
   }
 }
 
-// POST /api/menu - Add a new menu item
+// POST /api/menu - Add item to memory
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -55,7 +36,6 @@ export async function POST(request: Request) {
       isPopular,
     } = body;
 
-    // Basic Validation
     if (!name || name.trim() === '') {
       return NextResponse.json(
         { success: false, error: 'Item name is required' },
@@ -77,20 +57,16 @@ export async function POST(request: Request) {
       );
     }
 
-    const newItem = await prisma.menuItem.create({
-      data: {
-        name: name.trim(),
-        description: description ? description.trim() : '',
-        price: parseFloat(Number(price).toFixed(2)),
-        category: category.trim(),
-        imageUrl: imageUrl && imageUrl.trim() !== '' 
-          ? imageUrl.trim() 
-          : 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=600&auto=format&fit=crop&q=80',
-        isAvailable: isAvailable ?? true,
-        isVegetarian: Boolean(isVegetarian),
-        isSpicy: Boolean(isSpicy),
-        isPopular: Boolean(isPopular),
-      },
+    const newItem = addMenuItem({
+      name: name.trim(),
+      description: description ? description.trim() : '',
+      price: parseFloat(Number(price).toFixed(2)),
+      category: category.trim(),
+      imageUrl: imageUrl && imageUrl.trim() !== '' ? imageUrl.trim() : undefined,
+      isAvailable: isAvailable ?? true,
+      isVegetarian: Boolean(isVegetarian),
+      isSpicy: Boolean(isSpicy),
+      isPopular: Boolean(isPopular),
     });
 
     return NextResponse.json({ success: true, data: newItem }, { status: 201 });

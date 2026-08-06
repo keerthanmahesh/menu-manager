@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { updateMenuItem, deleteMenuItem } from '@/lib/mockData';
 
-// PATCH /api/menu/[id] - Update item (price, details, availability)
+// PATCH /api/menu/[id] - Update item in memory
 export async function PATCH(
   request: Request,
   { params }: { params: { id: string } }
@@ -9,17 +9,6 @@ export async function PATCH(
   try {
     const { id } = params;
     const body = await request.json();
-
-    const existingItem = await prisma.menuItem.findUnique({
-      where: { id },
-    });
-
-    if (!existingItem) {
-      return NextResponse.json(
-        { success: false, error: 'Menu item not found' },
-        { status: 404 }
-      );
-    }
 
     const updateData: any = {};
 
@@ -42,10 +31,14 @@ export async function PATCH(
     if (body.isSpicy !== undefined) updateData.isSpicy = Boolean(body.isSpicy);
     if (body.isPopular !== undefined) updateData.isPopular = Boolean(body.isPopular);
 
-    const updatedItem = await prisma.menuItem.update({
-      where: { id },
-      data: updateData,
-    });
+    const updatedItem = updateMenuItem(id, updateData);
+
+    if (!updatedItem) {
+      return NextResponse.json(
+        { success: false, error: 'Menu item not found' },
+        { status: 404 }
+      );
+    }
 
     return NextResponse.json({ success: true, data: updatedItem });
   } catch (error: any) {
@@ -57,28 +50,21 @@ export async function PATCH(
   }
 }
 
-// DELETE /api/menu/[id] - Delete a menu item
+// DELETE /api/menu/[id] - Delete item from memory
 export async function DELETE(
   request: Request,
   { params }: { params: { id: string } }
 ) {
   try {
     const { id } = params;
+    const deleted = deleteMenuItem(id);
 
-    const existingItem = await prisma.menuItem.findUnique({
-      where: { id },
-    });
-
-    if (!existingItem) {
+    if (!deleted) {
       return NextResponse.json(
         { success: false, error: 'Menu item not found' },
         { status: 404 }
       );
     }
-
-    await prisma.menuItem.delete({
-      where: { id },
-    });
 
     return NextResponse.json({ success: true, message: 'Item deleted successfully' });
   } catch (error: any) {
